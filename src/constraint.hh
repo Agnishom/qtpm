@@ -22,7 +22,7 @@ struct Constraint {
 
   ClockVariables x;
   Order odr;
-  int c;
+  double c;
 
   bool satisfy (double d) const {
     switch (odr) {
@@ -55,16 +55,16 @@ class ConstraintMaker {
   ClockVariables x;
 public:
   ConstraintMaker(ClockVariables x) : x(x) {}
-  Constraint<ClockVariables> operator<(int c) {
+  Constraint<ClockVariables> operator<(double c) {
     return Constraint<ClockVariables> {x, Constraint<ClockVariables>::Order::lt, c};
   }
-  Constraint<ClockVariables> operator<=(int c) {
+  Constraint<ClockVariables> operator<=(double c) {
     return Constraint<ClockVariables> {x, Constraint<ClockVariables>::Order::le, c};
   }
-  Constraint<ClockVariables> operator>(int c) {
+  Constraint<ClockVariables> operator>(double c) {
     return Constraint<ClockVariables> {x, Constraint<ClockVariables>::Order::gt, c};
   }
-  Constraint<ClockVariables> operator>=(int c) {
+  Constraint<ClockVariables> operator>=(double c) {
     return Constraint<ClockVariables> {x, Constraint<ClockVariables>::Order::ge, c};
   }
 };

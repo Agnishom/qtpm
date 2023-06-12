@@ -89,13 +89,62 @@ void printResult<bool>(FILE* fout, std::array<Bounds, 6> arr, bool weight) {
   }
 }
 
+// printing as a table
+
+template<class RawWeight>
+void printResultTable(FILE* fout, std::array<Bounds, 6> arr, RawWeight weight) {
+  // We will write the data in the following order:
+  // weight
+  // tLeft tLeftIncl tRight RightIncl
+  // tPrimeLeft tPrimeLeftIncl tPrimeRight tPrimeRightIncl
+  // tDiffLeft tDiffLeftIncl tDiffRight tDiffRightIncl
+  fprintf(fout, "%lf %lf %d %lf %d %lf %d %lf %d %lf %d %lf %d\n",
+          weight,
+          -arr[0].first, arr[0].second, arr[1].first, arr[1].second,
+          -arr[2].first, arr[2].second, arr[3].first, arr[3].second,
+          -arr[4].first, arr[4].second, arr[5].first, arr[5].second);
+}
+
+
+template<>
+void printResultTable<bool>(FILE* fout, std::array<Bounds, 6> arr, bool weight) {
+  // We will write the data in the following order:
+  // tLeft tLeftIncl tRight RightIncl
+  // tPrimeLeft tPrimeLeftIncl tPrimeRight tPrimeRightIncl
+  // tDiffLeft tDiffLeftIncl tDiffRight tDiffRightIncl
+  if (weight) {
+    fprintf(fout, "%lf %d %lf %d %lf %d %lf %d %lf %d %lf %d\n",
+            -arr[0].first, arr[0].second, arr[1].first, arr[1].second,
+            -arr[2].first, arr[2].second, arr[3].first, arr[3].second,
+            -arr[4].first, arr[4].second, arr[5].first, arr[5].second);
+
+  }
+}
+
+template<class RawWeight>
+void printTableHeader(FILE* fout, RawWeight weight) {
+  fprintf(fout, "weight tLeft tLeftIncl tRight RightIncl\
+   tPrimeLeft tPrimeLeftIncl tPrimeRight tPrimeRightIncl\
+    tDiffLeft tDiffLeftIncl tDiffRight tDiffRightIncl\n");
+}
+
+template<>
+void printTableHeader<bool>(FILE* fout, bool weight) {
+  fprintf(fout, "tLeft tLeftIncl tRight RightIncl\
+   tPrimeLeft tPrimeLeftIncl tPrimeRight tPrimeRightIncl\
+    tDiffLeft tDiffLeftIncl tDiffRight tDiffRightIncl\n");
+}
 
 template<class SignalVariables, class ClockVariables, class Weight, class Value>
-static inline void QTPM(QuantitativeTimedPatternMatching<SignalVariables, ClockVariables, Weight, Value> &qtpm, FILE* fin, FILE* fout, bool quiet, bool isAbsTime) {
+static inline void QTPM(QuantitativeTimedPatternMatching<SignalVariables, ClockVariables, Weight, Value> &qtpm, FILE* fin, FILE* fout, bool quiet, bool isAbsTime, bool asTable) {
   flockfile(fin);
   double time;
   std::vector<Value> valuation;
   double last_time = 0.0;
+  if (!quiet && asTable) {
+    Weight weight0;
+    printTableHeader(fout, weight0.data);
+  }
   while(getOne(fin, time, valuation) != EOF) {
     if (isAbsTime) {
       qtpm.feed(valuation, time - last_time);
@@ -110,7 +159,11 @@ static inline void QTPM(QuantitativeTimedPatternMatching<SignalVariables, ClockV
       std::array<Bounds, 6> arr;
       Weight weight;
       BOOST_FOREACH(std::tie(arr, weight), result) {
-        printResult(fout, arr, weight.data);
+        if (asTable) {
+          printResultTable(fout, arr, weight.data);
+        } else {
+          printResult(fout, arr, weight.data);
+        }
       }
     }
     result.clear();
@@ -136,7 +189,8 @@ int main(int argc, char *argv[])
     ("minplus", "use minplus semiring space robustness")
     ("maxplus", "use maxplus semiring space robustness")
     ("boolean", "use boolean semiring space robustness")
-    ("ignore-zero", "Ignore zero of the semiring");
+    ("ignore-zero", "Ignore zero of the semiring")
+    ("as-table", "Print as comma-seperated values");
 
   command_line_parser parser(argc, argv);
   parser.options(visible);
@@ -174,22 +228,22 @@ int main(int argc, char *argv[])
     using Weight = MinPlusSemiring<Value>;
     std::function<Weight(const std::vector<Constraint<ClockVariables>> &,const std::vector<std::vector<Value>> &)> cost = multipleSpaceRobustness<Weight, Value, ClockVariables>;
     QuantitativeTimedPatternMatching<SignalVariables, ClockVariables, Weight, Value> qtpm(TA, initStates, cost, vm.count("ignore-zero"));
-    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"));
+    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"),vm.count("as-table"));
   } else if (vm.count("maxplus")) {
     using Weight = MaxPlusSemiring<Value>;
     std::function<Weight(const std::vector<Constraint<ClockVariables>> &,const std::vector<std::vector<Value>> &)> cost = multipleSpaceRobustness<Weight, Value, ClockVariables>;
     QuantitativeTimedPatternMatching<SignalVariables, ClockVariables, Weight, Value> qtpm(TA, initStates, cost, vm.count("ignore-zero"));
-    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"));
+    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"), vm.count("as-table"));
   } else if (vm.count("boolean")) {
     using Weight = BooleanSemiring;
     std::function<Weight(const std::vector<Constraint<ClockVariables>> &,const std::vector<std::vector<Value>> &)> cost = multipleSpaceRobustness<Weight, Value, ClockVariables>;
     QuantitativeTimedPatternMatching<SignalVariables, ClockVariables, Weight, Value> qtpm(TA, initStates, cost, vm.count("ignore-zero"));
-    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"));
+    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"), vm.count("as-table"));
   } else {
     using Weight = MaxMinSemiring<Value>;
     std::function<Weight(const std::vector<Constraint<ClockVariables>> &,const std::vector<std::vector<Value>> &)> cost = multipleSpaceRobustness<Weight, Value, ClockVariables>;
     QuantitativeTimedPatternMatching<SignalVariables, ClockVariables, Weight, Value> qtpm(TA, initStates, cost, vm.count("ignore-zero"));
-    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"));
+    QTPM(qtpm, file, stdout, vm.count("quiet"), vm.count("abs"), vm.count("as-table"));
   }
 
   return 0;
