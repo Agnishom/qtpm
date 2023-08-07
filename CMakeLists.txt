@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.5)
+
 project("Quantitative Timed Pattern Matching" CXX)
 
 # The project version number.
@@ -6,8 +8,14 @@ set(VERSION_MINOR   1   CACHE STRING "Project minor version number.")
 set(VERSION_PATCH   0   CACHE STRING "Project patch version number.")
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
-cmake_minimum_required(VERSION 3.1)
-set(CMAKE_CXX_FLAGS "-Wall -std=c++14 -march=native")
+# Add "-march=native" only if it is supported
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+if(COMPILER_SUPPORTS_MARCH_NATIVE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+endif()
+
+set(CMAKE_CXX_FLAGS "-Wall -std=c++14")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -pg -O0 -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-flto -O3 -DRELEASE")
 
@@ -27,8 +35,8 @@ add_executable(qtpm
   src/main.cc)
 target_link_libraries(qtpm
 #  profiler
- ${Boost_PROGRAM_OPTIONS_LIBRARY}
- ${Boost_GRAPH_LIBRARY})
+${Boost_PROGRAM_OPTIONS_LIBRARY}
+${Boost_GRAPH_LIBRARY})
 
 
 ## Config for Test
@@ -55,7 +63,8 @@ add_test(NAME unit_test
 
 # add a target to generate API documentation with Doxygen
 find_package(Doxygen)
-option(BUILD_DOCUMENTATION "Create and install the HTML based API documentation (requires Doxygen)" ${DOXYGEN_FOUND})
+option(BUILD_DOCUMENTATION "Create the developers manual with Doxygen"
+  ${DOXYGEN_FOUND})
 
 if(BUILD_DOCUMENTATION)
     if(NOT DOXYGEN_FOUND)
@@ -64,6 +73,7 @@ if(BUILD_DOCUMENTATION)
 
     set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
     set(doxyfile ${CMAKE_CURRENT_BINARY_DIR}/doc/Doxyfile)
+    set(doxy_main_page ${CMAKE_CURRENT_SOURCE_DIR}/doc/main.md)
 
     configure_file(${doxyfile_in} ${doxyfile} @ONLY)
 
@@ -72,7 +82,4 @@ if(BUILD_DOCUMENTATION)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM)
-
-## It does not install the document by default
-#    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION share/doc)
 endif()
